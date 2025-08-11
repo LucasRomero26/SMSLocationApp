@@ -19,7 +19,7 @@ class MainActivity : ComponentActivity() {
             SMSLocationAppTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
+                    color = MaterialTheme.colorScheme.onSecondary
                 ) {
                     MainScreen()
                 }

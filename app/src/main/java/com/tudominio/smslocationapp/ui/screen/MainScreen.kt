@@ -3,9 +3,11 @@ package com.tudominio.smslocation.ui.screen
 import android.Manifest
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -16,18 +18,33 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
+import com.tudominio.smslocation.R
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.MultiplePermissionsState
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.tudominio.smslocation.viewmodel.MainViewModel
+
+// Custom color palette
+private val PrimaryBlue = Color(0xFF93949c)
+private val SecondaryBlue = Color(0xFF93949c)
+private val DarkBlue = Color(0xFF93949c)
+private val MediumBlue = Color(0xFF93949c)
+private val LightBlue = Color(0xFF93949c)
+private val AccentBlue = Color(0xFF93949c)
+private val BrightBlue = Color(0xFF93949c)
+private val DeepBlue = Color(0xFF93949c)
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
@@ -37,7 +54,7 @@ fun MainScreen(
     val context = LocalContext.current
     val uiState = viewModel.uiState
 
-    // Gestión de permisos
+    // Permission management
     val permissionsState = rememberMultiplePermissionsState(
         permissions = listOf(
             Manifest.permission.ACCESS_FINE_LOCATION,
@@ -46,77 +63,129 @@ fun MainScreen(
         )
     )
 
-    // Inicializar cliente de ubicación
+    // Initialize location client
     LaunchedEffect(Unit) {
         viewModel.initializeLocationClient(context)
     }
 
-    // Manejar cambios en permisos
+    // Handle permission changes
     LaunchedEffect(permissionsState.allPermissionsGranted) {
         if (permissionsState.allPermissionsGranted) {
             viewModel.onPermissionsGranted(context)
         }
     }
 
-    Column(
+    // Auto-hide location after SMS is sent
+    LaunchedEffect(uiState.lastMessage) {
+        if (uiState.lastMessage.isNotEmpty() && uiState.currentLocation != null) {
+            kotlinx.coroutines.delay(5000) // Wait 5 seconds
+            viewModel.clearLocationAndResetButton()
+        }
+    }
+
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        MaterialTheme.colorScheme.surface,
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                    )
-                )
-            )
-            .verticalScroll(rememberScrollState())
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .background(Color.White)
     ) {
-        // Header con título
-        HeaderSection()
+        // Background gradient circles for visual appeal
+        BackgroundDecorations()
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Modern header
+            ModernHeaderSection()
 
-        // Tarjeta principal
-        MainCard(
-            uiState = uiState,
-            viewModel = viewModel,
-            permissionsState = permissionsState
-        )
+            Spacer(modifier = Modifier.height(32.dp))
 
-        Spacer(modifier = Modifier.height(24.dp))
+            // Main interaction card
+            ModernMainCard(
+                uiState = uiState,
+                viewModel = viewModel,
+                permissionsState = permissionsState
+            )
 
-        // Información de estado
-        StatusSection(uiState = uiState, viewModel = viewModel)
+            Spacer(modifier = Modifier.height(24.dp))
+
+        }
     }
 }
 
 @Composable
-private fun HeaderSection() {
+private fun BackgroundDecorations() {
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Top right gradient circle
+        Box(
+            modifier = Modifier
+                .size(200.dp)
+                .offset(x = 150.dp, y = (-50).dp)
+                .background(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            BrightBlue.copy(alpha = 0.1f),
+                            Color.Transparent
+                        )
+                    ),
+                    shape = CircleShape
+                )
+        )
+
+        // Bottom left gradient circle
+        Box(
+            modifier = Modifier
+                .size(150.dp)
+                .align(Alignment.BottomStart)
+                .offset(x = (-30).dp, y = 50.dp)
+                .background(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            PrimaryBlue.copy(alpha = 0.08f),
+                            Color.Transparent
+                        )
+                    ),
+                    shape = CircleShape
+                )
+        )
+    }
+}
+
+@Composable
+private fun ModernHeaderSection() {
     Column(
+        modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(
-            imageVector = Icons.Default.LocationOn,
-            contentDescription = null,
-            modifier = Modifier.size(48.dp),
-            tint = MaterialTheme.colorScheme.primary
+        Spacer(modifier = Modifier.height(40.dp))
+
+        Image(
+                painter = painterResource(id = R.drawable.location_icon),
+                contentDescription = null,
+                modifier = Modifier.size(120.dp)
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+
+        Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            text = "SMS Ubicación",
-            style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            fontWeight = FontWeight.Bold
+            text = "Welcome to SMS Juls",
+            style = MaterialTheme.typography.headlineLarge.copy(
+                fontWeight = FontWeight.Bold,
+                fontSize = 32.sp
+            ),
+            color = DarkBlue
         )
 
+        Spacer(modifier = Modifier.height(8.dp))
+
         Text(
-            text = "Envía tu ubicación GPS vía SMS",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            text = "Share your location instantly via SMS",
+            style = MaterialTheme.typography.bodyLarge,
+            color = DarkBlue.copy(alpha = 0.8f),
             textAlign = TextAlign.Center
         )
     }
@@ -124,7 +193,7 @@ private fun HeaderSection() {
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
-private fun MainCard(
+private fun ModernMainCard(
     uiState: com.tudominio.smslocation.viewmodel.UiState,
     viewModel: MainViewModel,
     permissionsState: MultiplePermissionsState
@@ -134,28 +203,27 @@ private fun MainCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
+            .shadow(12.dp, RoundedCornerShape(28.dp)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        shape = RoundedCornerShape(28.dp)
     ) {
         Column(
-            modifier = Modifier.padding(24.dp),
+            modifier = Modifier.padding(28.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Campo de número telefónico
-            PhoneNumberInput(
+            // Modern phone number input
+            ModernPhoneNumberInput(
                 phoneNumber = uiState.phoneNumber,
                 isValid = uiState.isPhoneNumberValid,
                 onPhoneNumberChange = viewModel::updatePhoneNumber,
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
-            // Estado de permisos (sin obtener GPS automáticamente)
-            PermissionsStatus(
+            // Modern permissions status
+            ModernPermissionsStatus(
                 hasLocationPermission = uiState.hasLocationPermission,
                 hasSmsPermission = uiState.hasSmsPermission,
                 onRequestPermissions = {
@@ -163,39 +231,48 @@ private fun MainCard(
                 }
             )
 
-            // Mostrar proceso de envío SMS
+            // SMS process animation
             AnimatedVisibility(
                 visible = uiState.isSendingSMS,
-                enter = slideInVertically() + fadeIn(),
-                exit = slideOutVertically() + fadeOut()
+                enter = slideInVertically(
+                    initialOffsetY = { it },
+                    animationSpec = tween(400, easing = EaseOutCubic)
+                ) + fadeIn(animationSpec = tween(400)),
+                exit = slideOutVertically(
+                    targetOffsetY = { -it },
+                    animationSpec = tween(300)
+                ) + fadeOut(animationSpec = tween(300))
             ) {
-                SMSProcessCard(
+                ModernSMSProcessCard(
                     isLoadingLocation = uiState.isLoadingLocation,
                     isSendingSMS = uiState.isSendingSMS,
-                    modifier = Modifier.padding(top = 16.dp)
+                    modifier = Modifier.padding(top = 24.dp)
                 )
             }
 
-            // Mostrar coordenadas si están disponibles y se acaba de enviar
+            // Location display
             AnimatedVisibility(
                 visible = uiState.currentLocation != null && !uiState.isSendingSMS,
                 enter = slideInVertically() + fadeIn(),
                 exit = slideOutVertically() + fadeOut()
             ) {
                 uiState.currentLocation?.let { location ->
-                    LocationDisplay(
+                    ModernLocationDisplay(
                         latitude = location.latitude,
                         longitude = location.longitude,
-                        modifier = Modifier.padding(top = 16.dp)
+                        modifier = Modifier.padding(top = 24.dp)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
-            // Botón de enviar SMS
-            SendSMSButton(
-                enabled = uiState.isPhoneNumberValid && uiState.hasLocationPermission && uiState.hasSmsPermission,
+            // Modern send button
+            ModernSendButton(
+                enabled = uiState.isPhoneNumberValid &&
+                        uiState.hasLocationPermission &&
+                        uiState.hasSmsPermission &&
+                        !uiState.isSendingSMS,
                 isLoading = uiState.isSendingSMS,
                 onSendSMS = { viewModel.sendSMSWithLocation(context) }
             )
@@ -204,7 +281,7 @@ private fun MainCard(
 }
 
 @Composable
-private fun PhoneNumberInput(
+private fun ModernPhoneNumberInput(
     phoneNumber: String,
     isValid: Boolean,
     onPhoneNumberChange: (String) -> Unit,
@@ -212,69 +289,98 @@ private fun PhoneNumberInput(
 ) {
     Column(modifier = modifier) {
         Text(
-            text = "Número de destino",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(bottom = 8.dp)
+            text = "Phone Number",
+            style = MaterialTheme.typography.titleLarge.copy(
+                fontWeight = FontWeight.SemiBold
+            ),
+            color = DarkBlue,
+            modifier = Modifier.padding(bottom = 16.dp)
         )
 
         OutlinedTextField(
             value = phoneNumber,
             onValueChange = onPhoneNumberChange,
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("3012345678") },
+            placeholder = {
+                Text(
+                    "3012345678",
+                    color = MediumBlue.copy(alpha = 0.5f)
+                )
+            },
             leadingIcon = {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(start = 12.dp)
+                    modifier = Modifier.padding(start = 16.dp)
                 ) {
                     Text(
                         text = "+57",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        style = MaterialTheme.typography.bodyLarge.copy(
+                            fontWeight = FontWeight.Medium
+                        ),
+                        color = MediumBlue
                     )
                     Divider(
                         modifier = Modifier
                             .height(24.dp)
                             .width(1.dp)
-                            .padding(horizontal = 8.dp),
-                        color = MaterialTheme.colorScheme.outline
+                            .padding(horizontal = 12.dp),
+                        color = MediumBlue.copy(alpha = 0.3f)
                     )
                 }
             },
             trailingIcon = {
                 if (phoneNumber.isNotEmpty()) {
-                    Icon(
-                        imageVector = if (isValid) Icons.Default.CheckCircle else Icons.Default.Error,
-                        contentDescription = null,
-                        tint = if (isValid) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .background(
+                                color = if (isValid) LightBlue.copy(alpha = 0.2f)
+                                else Color.Red.copy(alpha = 0.1f),
+                                shape = CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = if (isValid) Icons.Default.Check else Icons.Default.Error,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                            tint = if (isValid) LightBlue else Color.Red
+                        )
+                    }
                 }
             },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
             singleLine = true,
             shape = RoundedCornerShape(16.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = if (isValid && phoneNumber.isNotEmpty())
-                    MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary
+                focusedBorderColor = if (isValid && phoneNumber.isNotEmpty()) LightBlue else PrimaryBlue,
+                unfocusedBorderColor = MediumBlue.copy(alpha = 0.3f),
+                focusedTextColor = DarkBlue,
+                unfocusedTextColor = DarkBlue
             )
         )
 
+        Spacer(modifier = Modifier.height(8.dp))
+
         Text(
-            text = if (phoneNumber.isEmpty()) "Ingrese número móvil colombiano"
-            else if (isValid) "✓ Número válido"
-            else "Debe ser móvil colombiano (10 dígitos, inicia con 3)",
+            text = when {
+                phoneNumber.isEmpty() -> "Enter Colombian mobile number"
+                isValid -> "Valid number"
+                else -> "Must be Colombian mobile\n(10 digits, starts with 3)"
+            },
             style = MaterialTheme.typography.bodySmall,
-            color = if (phoneNumber.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant
-            else if (isValid) MaterialTheme.colorScheme.tertiary
-            else MaterialTheme.colorScheme.error,
-            modifier = Modifier.padding(top = 4.dp, start = 16.dp)
+            color = when {
+                phoneNumber.isEmpty() -> MediumBlue.copy(alpha = 0.7f)
+                isValid -> LightBlue
+                else -> Color.Red
+            },
+            modifier = Modifier.padding(start = 16.dp)
         )
     }
 }
 
 @Composable
-private fun PermissionsStatus(
+private fun ModernPermissionsStatus(
     hasLocationPermission: Boolean,
     hasSmsPermission: Boolean,
     onRequestPermissions: () -> Unit
@@ -285,61 +391,68 @@ private fun PermissionsStatus(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = if (allPermissionsGranted)
-                MaterialTheme.colorScheme.tertiaryContainer
+                LightBlue.copy(alpha = 0.1f)
             else
-                MaterialTheme.colorScheme.errorContainer
+                Color.Red.copy(alpha = 0.1f)
         ),
-        shape = RoundedCornerShape(16.dp)
+        shape = RoundedCornerShape(20.dp)
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(20.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = if (allPermissionsGranted) Icons.Default.CheckCircle else Icons.Default.Warning,
-                contentDescription = null,
-                modifier = Modifier.size(24.dp),
-                tint = if (allPermissionsGranted)
-                    MaterialTheme.colorScheme.onTertiaryContainer
-                else
-                    MaterialTheme.colorScheme.onErrorContainer
-            )
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(
+                        color = if (allPermissionsGranted) LightBlue else Color.Red,
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (allPermissionsGranted) Icons.Default.Shield else Icons.Default.Warning,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    tint = Color.White
+                )
+            }
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(16.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = if (allPermissionsGranted)
-                        "✓ Permisos concedidos"
-                    else
-                        "Permisos requeridos",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = if (allPermissionsGranted)
-                        MaterialTheme.colorScheme.onTertiaryContainer
-                    else
-                        MaterialTheme.colorScheme.onErrorContainer
+                    text = if (allPermissionsGranted) "All Set!" else "Permissions Needed",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.SemiBold
+                    ),
+                    color = if (allPermissionsGranted) LightBlue else Color.Red
                 )
 
                 Text(
                     text = if (allPermissionsGranted)
-                        "GPS y SMS disponibles"
+                        "GPS and SMS permissions granted"
                     else
-                        "Necesarios para obtener GPS y enviar SMS",
-                    style = MaterialTheme.typography.bodySmall,
+                        "Location and SMS access required",
+                    style = MaterialTheme.typography.bodyMedium,
                     color = if (allPermissionsGranted)
-                        MaterialTheme.colorScheme.onTertiaryContainer
+                        MediumBlue.copy(alpha = 0.8f)
                     else
-                        MaterialTheme.colorScheme.onErrorContainer
+                        Color.Red.copy(alpha = 0.8f)
                 )
             }
 
             if (!allPermissionsGranted) {
-                IconButton(onClick = onRequestPermissions) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowForward,
-                        contentDescription = "Solicitar permisos",
-                        tint = MaterialTheme.colorScheme.onErrorContainer
-                    )
+                Button(
+                    onClick = onRequestPermissions,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.Red,
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.height(40.dp)
+                ) {
+                    Text("Grant", fontWeight = FontWeight.Medium)
                 }
             }
         }
@@ -347,7 +460,7 @@ private fun PermissionsStatus(
 }
 
 @Composable
-private fun SMSProcessCard(
+private fun ModernSMSProcessCard(
     isLoadingLocation: Boolean,
     isSendingSMS: Boolean,
     modifier: Modifier = Modifier
@@ -355,49 +468,80 @@ private fun SMSProcessCard(
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
+            containerColor = PrimaryBlue.copy(alpha = 0.1f)
         ),
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(20.dp)
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            modifier = Modifier.padding(24.dp),
+            horizontalAlignment = Alignment.Start
         ) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(32.dp),
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                strokeWidth = 3.dp
+            // Animated loading indicator
+            val infiniteTransition = rememberInfiniteTransition(label = "loading")
+            val rotation by infiniteTransition.animateFloat(
+                initialValue = 0f,
+                targetValue = 360f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(1000, easing = LinearEasing),
+                    repeatMode = RepeatMode.Restart
+                ),
+                label = "rotation"
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .background(
+                        brush = Brush.linearGradient(
+                            colors = listOf(PrimaryBlue, BrightBlue)
+                        ),
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = when {
+                        isLoadingLocation -> Icons.Default.MyLocation
+                        isSendingSMS -> Icons.Default.Send
+                        else -> Icons.Default.Refresh
+                    },
+                    contentDescription = null,
+                    modifier = Modifier.size(32.dp),
+                    tint = Color.White
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             Text(
                 text = when {
-                    isLoadingLocation -> "📡 Obteniendo ubicación GPS..."
-                    isSendingSMS -> "📱 Enviando SMS..."
-                    else -> "⏳ Procesando..."
+                    isLoadingLocation -> "Getting Location"
+                    isSendingSMS -> "Sending Message"
+                    else -> "Processing"
                 },
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                textAlign = TextAlign.Center
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.SemiBold
+                ),
+                color = DarkBlue,
+                textAlign = TextAlign.Left
             )
 
             Text(
                 text = when {
-                    isLoadingLocation -> "Por favor espera mientras obtenemos tu ubicación actual"
-                    isSendingSMS -> "Enviando mensaje con coordenadas GPS"
-                    else -> "Preparando envío..."
+                    isLoadingLocation -> "Acquiring GPS coordinates..."
+                    isSendingSMS -> "Sending SMS with location data"
+                    else -> "Preparing to send..."
                 },
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                textAlign = TextAlign.Center
+                style = MaterialTheme.typography.bodyMedium,
+                color = MediumBlue.copy(alpha = 0.8f),
+                textAlign = TextAlign.Left
             )
         }
     }
 }
 
 @Composable
-private fun LocationDisplay(
+private fun ModernLocationDisplay(
     latitude: Double,
     longitude: Double,
     modifier: Modifier = Modifier
@@ -405,49 +549,114 @@ private fun LocationDisplay(
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.tertiaryContainer
+            containerColor = LightBlue.copy(alpha = 0.1f)
         ),
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(20.dp)
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            modifier = Modifier.padding(24.dp)
         ) {
-            Icon(
-                imageVector = Icons.Default.LocationOn,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onTertiaryContainer,
-                modifier = Modifier.size(24.dp)
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(
+                            brush = Brush.linearGradient(
+                                colors = listOf(LightBlue, BrightBlue)
+                            ),
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.LocationOn,
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp),
+                        tint = Color.White
+                    )
+                }
 
-            Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.width(16.dp))
 
-            Text(
-                text = "Coordenadas GPS",
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onTertiaryContainer,
-                fontWeight = FontWeight.Bold
-            )
+                Text(
+                    text = "Current Location",
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontWeight = FontWeight.SemiBold
+                    ),
+                    color = DarkBlue
+                )
+            }
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
-            Text(
-                text = "LAT: ${String.format("%.6f", latitude)}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onTertiaryContainer
-            )
+            Column {
+                LocationCoordinate(
+                    label = "Latitude",
+                    value = String.format("%.6f", latitude),
+                    icon = Icons.Default.North
+                )
 
-            Text(
-                text = "LON: ${String.format("%.6f", longitude)}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onTertiaryContainer
-            )
+                Spacer(modifier = Modifier.height(12.dp))
+
+                LocationCoordinate(
+                    label = "Longitude",
+                    value = String.format("%.6f", longitude),
+                    icon = Icons.Default.East
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun SendSMSButton(
+private fun LocationCoordinate(
+    label: String,
+    value: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                color = Color.White,
+                shape = RoundedCornerShape(12.dp)
+            )
+            .padding(16.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(20.dp),
+            tint = MediumBlue
+        )
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Text(
+            text = "$label:",
+            style = MaterialTheme.typography.bodyMedium.copy(
+                fontWeight = FontWeight.Medium
+            ),
+            color = MediumBlue,
+            modifier = Modifier.width(80.dp)
+        )
+
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium.copy(
+                fontWeight = FontWeight.Normal
+            ),
+            color = DarkBlue
+        )
+    }
+}
+
+@Composable
+private fun ModernSendButton(
     enabled: Boolean,
     isLoading: Boolean,
     onSendSMS: () -> Unit
@@ -456,126 +665,150 @@ private fun SendSMSButton(
         onClick = onSendSMS,
         modifier = Modifier
             .fillMaxWidth()
-            .height(56.dp),
+            .height(56.dp)
+            .shadow(
+                elevation = if (enabled && !isLoading) 8.dp else 0.dp,
+                shape = RoundedCornerShape(16.dp)
+            ),
         enabled = enabled && !isLoading,
         shape = RoundedCornerShape(16.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = MaterialTheme.colorScheme.tertiary,
-            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant
+            containerColor = if (enabled && !isLoading)
+                Brush.linearGradient(
+                    colors = listOf(PrimaryBlue, BrightBlue)
+                ).let { PrimaryBlue }
+            else
+                MediumBlue.copy(alpha = 0.3f),
+            disabledContainerColor = MediumBlue.copy(alpha = 0.3f),
+            contentColor = Color.White,
+            disabledContentColor = Color.White.copy(alpha = 0.6f)
         )
     ) {
-        if (isLoading) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(20.dp),
-                color = MaterialTheme.colorScheme.onTertiary,
-                strokeWidth = 2.dp
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Enviando SMS...")
-        } else {
-            Icon(
-                imageVector = Icons.Default.Send,
-                contentDescription = null,
-                modifier = Modifier.size(20.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "Enviar SMS con ubicación",
-                style = MaterialTheme.typography.titleMedium
-            )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    color = Color.White,
+                    strokeWidth = 2.dp
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    "Sending...",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.SemiBold
+                    )
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Default.Send,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = "Send Location",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.SemiBold
+                    )
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun StatusSection(
+private fun ModernStatusSection(
     uiState: com.tudominio.smslocation.viewmodel.UiState,
     viewModel: MainViewModel
 ) {
-    // Mensajes de éxito
+    // Success messages
     AnimatedVisibility(
         visible = uiState.lastMessage.isNotEmpty(),
         enter = slideInVertically() + fadeIn(),
         exit = slideOutVertically() + fadeOut()
     ) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.tertiaryContainer
-            ),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Row(
-                modifier = Modifier.padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Default.CheckCircle,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onTertiaryContainer,
-                    modifier = Modifier.size(24.dp)
-                )
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Text(
-                    text = uiState.lastMessage,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onTertiaryContainer,
-                    modifier = Modifier.weight(1f)
-                )
-
-                IconButton(onClick = viewModel::clearMessage) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Cerrar",
-                        tint = MaterialTheme.colorScheme.onTertiaryContainer
-                    )
-                }
-            }
-        }
+        ModernStatusCard(
+            message = uiState.lastMessage,
+            isError = false,
+            onDismiss = viewModel::clearMessage
+        )
     }
 
-    // Mensajes de error
+    // Error messages
     AnimatedVisibility(
         visible = uiState.errorMessage.isNotEmpty(),
         enter = slideInVertically() + fadeIn(),
         exit = slideOutVertically() + fadeOut()
     ) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.errorContainer
-            ),
-            shape = RoundedCornerShape(12.dp)
+        ModernStatusCard(
+            message = uiState.errorMessage,
+            isError = true,
+            onDismiss = viewModel::clearError
+        )
+    }
+}
+
+@Composable
+private fun ModernStatusCard(
+    message: String,
+    isError: Boolean,
+    onDismiss: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(6.dp, RoundedCornerShape(16.dp)),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isError)
+                Color.Red.copy(alpha = 0.1f)
+            else
+                LightBlue.copy(alpha = 0.1f)
+        ),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(
+                        color = if (isError) Color.Red else LightBlue,
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.Error,
+                    imageVector = if (isError) Icons.Default.Error else Icons.Default.CheckCircle,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onErrorContainer,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(20.dp),
+                    tint = Color.White
                 )
+            }
 
-                Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(16.dp))
 
-                Text(
-                    text = uiState.errorMessage,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onErrorContainer,
-                    modifier = Modifier.weight(1f)
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (isError) Color.Red else DarkBlue,
+                modifier = Modifier.weight(1f)
+            )
+
+            IconButton(
+                onClick = onDismiss,
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Close",
+                    modifier = Modifier.size(18.dp),
+                    tint = if (isError) Color.Red else MediumBlue
                 )
-
-                IconButton(onClick = viewModel::clearError) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Cerrar",
-                        tint = MaterialTheme.colorScheme.onErrorContainer
-                    )
-                }
             }
         }
     }

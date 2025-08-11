@@ -17,6 +17,7 @@ import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -43,7 +44,7 @@ class MainViewModel : ViewModel() {
     fun initializeLocationClient(context: Context) {
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
         checkPermissions(context)
-        // NO obtener ubicación automáticamente
+        // Do not get location automatically
     }
 
     private fun checkPermissions(context: Context) {
@@ -62,21 +63,21 @@ class MainViewModel : ViewModel() {
             hasSmsPermission = hasSmsPermission
         )
 
-        // NO obtener ubicación automáticamente
+        // Do not get location automatically
     }
 
     fun updatePhoneNumber(number: String) {
-        // Limpiar el número para validación
+        // Clean the number for validation
         val cleanNumber = number.replace(Regex("[^0-9]"), "")
 
-        // Validar número colombiano (10 dígitos, empieza con 3)
+        // Validate Colombian number (10 digits, starts with 3)
         val isValid = cleanNumber.length == 10 && cleanNumber.startsWith("3")
 
         uiState = uiState.copy(
             phoneNumber = number,
             isPhoneNumberValid = isValid,
             errorMessage = if (!isValid && number.isNotEmpty()) {
-                "Número inválido. Debe ser un móvil colombiano (10 dígitos, inicia con 3)"
+                "Must be Colombian mobile"
             } else ""
         )
     }
@@ -85,7 +86,7 @@ class MainViewModel : ViewModel() {
         if (!uiState.hasLocationPermission) {
             uiState = uiState.copy(
                 showPermissionDialog = true,
-                errorMessage = "Se requiere permiso de ubicación"
+                errorMessage = "Location permission required"
             )
             return
         }
@@ -103,19 +104,19 @@ class MainViewModel : ViewModel() {
                     uiState = uiState.copy(
                         currentLocation = location,
                         isLoadingLocation = false,
-                        lastMessage = "Ubicación obtenida: ${String.format("%.6f", location.latitude)}, ${String.format("%.6f", location.longitude)}"
+                        lastMessage = "Location obtained: ${String.format("%.6f", location.latitude)}, ${String.format("%.6f", location.longitude)}"
                     )
                 } else {
                     uiState = uiState.copy(
                         isLoadingLocation = false,
-                        errorMessage = "No se pudo obtener la ubicación. Verifique que el GPS esté activado."
+                        errorMessage = "Could not get location. Please verify that GPS is enabled."
                     )
                 }
 
             } catch (e: Exception) {
                 uiState = uiState.copy(
                     isLoadingLocation = false,
-                    errorMessage = "Error al obtener ubicación: ${e.message}"
+                    errorMessage = "Error getting location: ${e.message}"
                 )
             }
         }
@@ -134,73 +135,107 @@ class MainViewModel : ViewModel() {
         }
     }
 
+    /**
+     * Función principal para enviar SMS con ubicación
+     * Incluye manejo automático de estado y limpieza después de 3 segundos
+     */
     fun sendSMSWithLocation(context: Context) {
-        // Verificar permisos primero
+        // Check permissions first
         if (!uiState.hasSmsPermission || !uiState.hasLocationPermission) {
             uiState = uiState.copy(
                 showPermissionDialog = true,
-                errorMessage = "Se requieren permisos de SMS y ubicación"
+                errorMessage = "SMS and location permissions required"
             )
             return
         }
 
         if (!uiState.isPhoneNumberValid) {
-            uiState = uiState.copy(errorMessage = "Número de teléfono inválido")
+            uiState = uiState.copy(errorMessage = "Invalid phone number")
             return
         }
 
         viewModelScope.launch {
             try {
-                // Paso 1: Indicar que se está enviando SMS
+                // Limpiar mensajes anteriores
+                clearMessage()
+                clearError()
+
+                // Step 1: Indicate SMS sending is in progress
                 uiState = uiState.copy(
                     isSendingSMS = true,
-                    isLoadingLocation = true,
-                    errorMessage = "",
-                    lastMessage = ""
+                    isLoadingLocation = true
                 )
 
-                // Paso 2: Obtener ubicación GPS actualizada
+                // Step 2: Get updated GPS location
                 val location = getLastKnownLocation()
 
                 if (location == null) {
                     uiState = uiState.copy(
                         isSendingSMS = false,
                         isLoadingLocation = false,
-                        errorMessage = "No se pudo obtener la ubicación GPS. Verifique que el GPS esté activado."
+                        errorMessage = "Could not get GPS location. Please verify that GPS is enabled."
                     )
                     return@launch
                 }
 
-                // Paso 3: Crear mensaje con ubicación actualizada
+                // Step 3: Update state with location
+                uiState = uiState.copy(
+                    currentLocation = location,
+                    isLoadingLocation = false
+                )
+
+                // Step 4: Create message with updated location
                 val message = createLocationMessage(location)
                 val fullPhoneNumber = "+57${uiState.phoneNumber.replace(Regex("[^0-9]"), "")}"
 
-                // Paso 4: Enviar SMS
+                // Step 5: Send SMS
                 sendSMS(fullPhoneNumber, message)
 
-                // Paso 5: Actualizar estado de éxito
+                // Step 6: Update success state
                 uiState = uiState.copy(
                     isSendingSMS = false,
-                    isLoadingLocation = false,
-                    currentLocation = location, // Guardar ubicación obtenida
-                    lastMessage = "SMS enviado exitosamente a $fullPhoneNumber\nLAT: ${String.format("%.6f", location.latitude)}, LON: ${String.format("%.6f", location.longitude)}",
-                    phoneNumber = "" // Limpiar campo después del envío
+                    lastMessage = "SMS sent successfully to $fullPhoneNumber"
                 )
+
+                // Step 7: Auto-limpiar después de 3 segundos (manejado en la UI)
 
             } catch (e: Exception) {
                 uiState = uiState.copy(
                     isSendingSMS = false,
                     isLoadingLocation = false,
-                    errorMessage = "Error al enviar SMS: ${e.message}"
+                    errorMessage = "Error sending SMS: ${e.message}"
                 )
             }
         }
     }
 
+    /**
+     * Limpia la ubicación actual y resetea el estado después de enviar SMS
+     * Se llama automáticamente después de 3 segundos desde la UI
+     */
+    fun clearLocationAndResetButton() {
+        uiState = uiState.copy(
+            currentLocation = null,
+            // El botón se desactivará automáticamente porque currentLocation es null
+            // Los permisos y número de teléfono se mantienen
+        )
+    }
+
+    /**
+     * Función auxiliar para validar si se puede enviar SMS
+     */
+    fun canSendSMS(): Boolean {
+        return uiState.isPhoneNumberValid &&
+                uiState.hasLocationPermission &&
+                uiState.hasSmsPermission &&
+                !uiState.isSendingSMS
+    }
+
     private fun createLocationMessage(location: Location): String {
         val currentTimeMillis = System.currentTimeMillis()
 
-        return "Ubicación GPS:\nLAT: ${String.format("%.6f", location.latitude)}\n" +
+        return "GPS Location:\n" +
+                "LAT: ${String.format("%.6f", location.latitude)}\n" +
                 "LON: ${String.format("%.6f", location.longitude)}\n" +
                 "Timestamp: $currentTimeMillis"
     }
@@ -209,7 +244,7 @@ class MainViewModel : ViewModel() {
         try {
             val smsManager = SmsManager.getDefault()
 
-            // Si el mensaje es muy largo, dividirlo en partes
+            // If message is too long, split it into parts
             val parts = smsManager.divideMessage(message)
 
             if (parts.size == 1) {
@@ -237,6 +272,6 @@ class MainViewModel : ViewModel() {
     fun onPermissionsGranted(context: Context) {
         checkPermissions(context)
         uiState = uiState.copy(showPermissionDialog = false)
-        // NO obtener ubicación automáticamente cuando se otorgan permisos
+        // Do not get location automatically when permissions are granted
     }
 }
