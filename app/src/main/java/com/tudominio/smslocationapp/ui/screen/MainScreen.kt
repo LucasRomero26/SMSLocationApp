@@ -1,6 +1,8 @@
 package com.tudominio.smslocation.ui.screen
 
 import android.Manifest
+import android.content.Context
+import android.view.inputmethod.InputMethodManager
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
@@ -9,6 +11,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -19,11 +22,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -53,6 +60,7 @@ fun MainScreen(
 ) {
     val context = LocalContext.current
     val uiState = viewModel.uiState
+    val focusManager = LocalFocusManager.current
 
     // Permission management
     val permissionsState = rememberMultiplePermissionsState(
@@ -111,7 +119,6 @@ fun MainScreen(
             )
 
             Spacer(modifier = Modifier.height(24.dp))
-
         }
     }
 }
@@ -163,11 +170,10 @@ private fun ModernHeaderSection() {
         Spacer(modifier = Modifier.height(40.dp))
 
         Image(
-                painter = painterResource(id = R.drawable.location_icon),
-                contentDescription = null,
-                modifier = Modifier.size(120.dp)
+            painter = painterResource(id = R.drawable.location_icon),
+            contentDescription = null,
+            modifier = Modifier.size(120.dp)
         )
-
 
         Spacer(modifier = Modifier.height(24.dp))
 
@@ -217,6 +223,7 @@ private fun ModernMainCard(
                 phoneNumber = uiState.phoneNumber,
                 isValid = uiState.isPhoneNumberValid,
                 onPhoneNumberChange = viewModel::updatePhoneNumber,
+                enabled = !uiState.isSendingSMS,
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -285,8 +292,11 @@ private fun ModernPhoneNumberInput(
     phoneNumber: String,
     isValid: Boolean,
     onPhoneNumberChange: (String) -> Unit,
+    enabled: Boolean = true,
     modifier: Modifier = Modifier
 ) {
+    val focusManager = LocalFocusManager.current
+
     Column(modifier = modifier) {
         Text(
             text = "Phone Number",
@@ -301,6 +311,7 @@ private fun ModernPhoneNumberInput(
             value = phoneNumber,
             onValueChange = onPhoneNumberChange,
             modifier = Modifier.fillMaxWidth(),
+            enabled = enabled,
             placeholder = {
                 Text(
                     "3012345678",
@@ -349,14 +360,24 @@ private fun ModernPhoneNumberInput(
                     }
                 }
             },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Number,  // Cambio: Number en lugar de Phone
+                imeAction = ImeAction.Done
+            ),
+            keyboardActions = KeyboardActions(
+                onDone = {
+                    focusManager.clearFocus()
+                }
+            ),
             singleLine = true,
             shape = RoundedCornerShape(16.dp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = if (isValid && phoneNumber.isNotEmpty()) LightBlue else PrimaryBlue,
                 unfocusedBorderColor = MediumBlue.copy(alpha = 0.3f),
                 focusedTextColor = DarkBlue,
-                unfocusedTextColor = DarkBlue
+                unfocusedTextColor = DarkBlue,
+                disabledBorderColor = MediumBlue.copy(alpha = 0.2f),
+                disabledTextColor = DarkBlue.copy(alpha = 0.6f)
             )
         )
 
@@ -581,77 +602,59 @@ private fun ModernLocationDisplay(
 
                 Spacer(modifier = Modifier.width(16.dp))
 
-                Text(
-                    text = "Current Location",
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontWeight = FontWeight.SemiBold
-                    ),
-                    color = DarkBlue
-                )
+                Column {
+                    Text(
+                        text = "Current Location",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        color = DarkBlue
+                    )
+                    Text(
+                        text = "GPS coordinates acquired",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MediumBlue.copy(alpha = 0.8f)
+                    )
+                }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            Column {
-                LocationCoordinate(
-                    label = "Latitude",
-                    value = String.format("%.6f", latitude),
-                    icon = Icons.Default.North
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                LocationCoordinate(
-                    label = "Longitude",
-                    value = String.format("%.6f", longitude),
-                    icon = Icons.Default.East
-                )
+            // Location coordinates
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Text(
+                        text = "Latitude",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MediumBlue.copy(alpha = 0.7f)
+                    )
+                    Text(
+                        text = String.format("%.6f", latitude),
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Medium
+                        ),
+                        color = DarkBlue
+                    )
+                }
+                Column {
+                    Text(
+                        text = "Longitude",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MediumBlue.copy(alpha = 0.7f)
+                    )
+                    Text(
+                        text = String.format("%.6f", longitude),
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Medium
+                        ),
+                        color = DarkBlue
+                    )
+                }
             }
         }
-    }
-}
-
-@Composable
-private fun LocationCoordinate(
-    label: String,
-    value: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(
-                color = Color.White,
-                shape = RoundedCornerShape(12.dp)
-            )
-            .padding(16.dp)
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            modifier = Modifier.size(20.dp),
-            tint = MediumBlue
-        )
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Text(
-            text = "$label:",
-            style = MaterialTheme.typography.bodyMedium.copy(
-                fontWeight = FontWeight.Medium
-            ),
-            color = MediumBlue,
-            modifier = Modifier.width(80.dp)
-        )
-
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium.copy(
-                fontWeight = FontWeight.Normal
-            ),
-            color = DarkBlue
-        )
     }
 }
 
@@ -661,61 +664,47 @@ private fun ModernSendButton(
     isLoading: Boolean,
     onSendSMS: () -> Unit
 ) {
+    val focusManager = LocalFocusManager.current  // Agregar para ocultar teclado
+
     Button(
-        onClick = onSendSMS,
+        onClick = {
+            focusManager.clearFocus()  // Ocultar teclado cuando se presiona enviar
+            onSendSMS()
+        },
+        enabled = enabled,
         modifier = Modifier
             .fillMaxWidth()
-            .height(56.dp)
-            .shadow(
-                elevation = if (enabled && !isLoading) 8.dp else 0.dp,
-                shape = RoundedCornerShape(16.dp)
-            ),
-        enabled = enabled && !isLoading,
-        shape = RoundedCornerShape(16.dp),
+            .height(56.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = if (enabled && !isLoading)
-                Brush.linearGradient(
-                    colors = listOf(PrimaryBlue, BrightBlue)
-                ).let { PrimaryBlue }
-            else
-                MediumBlue.copy(alpha = 0.3f),
-            disabledContainerColor = MediumBlue.copy(alpha = 0.3f),
+            containerColor = if (enabled) PrimaryBlue else MediumBlue.copy(alpha = 0.3f),
             contentColor = Color.White,
+            disabledContainerColor = MediumBlue.copy(alpha = 0.3f),
             disabledContentColor = Color.White.copy(alpha = 0.6f)
-        )
+        ),
+        shape = RoundedCornerShape(16.dp)
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            if (isLoading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
-                    color = Color.White,
-                    strokeWidth = 2.dp
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    "Sending...",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.SemiBold
-                    )
-                )
-            } else {
-                Icon(
-                    imageVector = Icons.Default.Send,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    text = "Send Location",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.SemiBold
-                    )
-                )
-            }
+        if (isLoading) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(20.dp),
+                color = Color.White,
+                strokeWidth = 2.dp
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+        } else {
+            Icon(
+                imageVector = Icons.Default.Send,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(12.dp))
         }
+
+        Text(
+            text = if (isLoading) "Sending..." else "Send Location",
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontWeight = FontWeight.SemiBold
+            )
+        )
     }
 }
 
@@ -724,90 +713,67 @@ private fun ModernStatusSection(
     uiState: com.tudominio.smslocation.viewmodel.UiState,
     viewModel: MainViewModel
 ) {
-    // Success messages
+    // Success message
     AnimatedVisibility(
         visible = uiState.lastMessage.isNotEmpty(),
         enter = slideInVertically() + fadeIn(),
         exit = slideOutVertically() + fadeOut()
     ) {
-        ModernStatusCard(
-            message = uiState.lastMessage,
-            isError = false,
-            onDismiss = viewModel::clearMessage
-        )
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = Color.Green.copy(alpha = 0.1f)
+            ),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    tint = Color.Green,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = uiState.lastMessage,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.Green.copy(alpha = 0.8f)
+                )
+            }
+        }
     }
 
-    // Error messages
+    // Error message
     AnimatedVisibility(
         visible = uiState.errorMessage.isNotEmpty(),
         enter = slideInVertically() + fadeIn(),
         exit = slideOutVertically() + fadeOut()
     ) {
-        ModernStatusCard(
-            message = uiState.errorMessage,
-            isError = true,
-            onDismiss = viewModel::clearError
-        )
-    }
-}
-
-@Composable
-private fun ModernStatusCard(
-    message: String,
-    isError: Boolean,
-    onDismiss: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(6.dp, RoundedCornerShape(16.dp)),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isError)
-                Color.Red.copy(alpha = 0.1f)
-            else
-                LightBlue.copy(alpha = 0.1f)
-        ),
-        shape = RoundedCornerShape(16.dp)
-    ) {
-        Row(
-            modifier = Modifier.padding(20.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = Color.Red.copy(alpha = 0.1f)
+            ),
+            shape = RoundedCornerShape(16.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(
-                        color = if (isError) Color.Red else LightBlue,
-                        shape = CircleShape
-                    ),
-                contentAlignment = Alignment.Center
+            Row(
+                modifier = Modifier.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = if (isError) Icons.Default.Error else Icons.Default.CheckCircle,
+                    imageVector = Icons.Default.Error,
                     contentDescription = null,
-                    modifier = Modifier.size(20.dp),
-                    tint = Color.White
+                    tint = Color.Red,
+                    modifier = Modifier.size(24.dp)
                 )
-            }
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (isError) Color.Red else DarkBlue,
-                modifier = Modifier.weight(1f)
-            )
-
-            IconButton(
-                onClick = onDismiss,
-                modifier = Modifier.size(32.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = "Close",
-                    modifier = Modifier.size(18.dp),
-                    tint = if (isError) Color.Red else MediumBlue
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = uiState.errorMessage,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.Red.copy(alpha = 0.8f)
                 )
             }
         }
